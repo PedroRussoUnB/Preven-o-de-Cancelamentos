@@ -3,6 +3,6 @@ pandas
 numpy
 matplotlib
 seaborn
-scikit-learn
+scikit-learn==1.4.2
 statsmodels
-imbalanced-learn
+imbalanced-learn==0.12.2
