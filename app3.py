@@ -1027,6 +1027,27 @@ with tab3:
 
     # --- Previsão (Bloco Robusto) ---
     # Cria um DataFrame de uma linha com todos os dados da simulação
+    final_sim_data_for_prediction = {}
+    for feature in final_features_for_model_training: # Itera sobre as features que o MODELO realmente usa
+        if feature in numerical_features_all or feature in binary_s_features_base:
+            final_sim_data_for_prediction[feature] = sim_data.get(feature, 0)
+        else: # Se a feature é uma dummy gerada de uma categoria original
+            original_cat_name = None
+            for cat_key in CATEGORICAL_COLS_MAP.keys():
+                if feature.startswith(f"{cat_key}_"):
+                    original_cat_name = cat_key
+                    break
+
+            if original_cat_name and original_cat_name in sim_data:
+                selected_cat_value_original = sim_data[original_cat_name]
+                dummy_name_from_selected = f"{original_cat_name}_{selected_cat_value_original.replace(' ', '_').replace('/', '_').replace('-', '_')}"
+
+                final_sim_data_for_prediction[feature] = 1 if feature == dummy_name_from_selected else 0
+            else:
+                final_sim_data_for_prediction[feature] = 0
+
+    # Passo 2: Preparar o DataFrame para o modelo
+    # Cria um DataFrame de uma linha com todos os dados da simulação
     sim_df = pd.DataFrame([final_sim_data_for_prediction])
 
     # Garante que todas as colunas que o modelo espera existam, preenchendo com 0 se faltarem
@@ -1046,14 +1067,14 @@ with tab3:
     # Substitui qualquer 'NaN' que possa ter surgido por 0, para segurança máxima
     sim_df_final.fillna(0, inplace=True)
 
+    # Passo 3: Realizar a predição
     with np.errstate(over='ignore'):
         try:
             # Envia os dados limpos e garantidos para a predição
             sim_proba = model.predict(sim_df_final)[0]
         except Exception as e:
-            st.error(f"Erro ao realizar a predição: {e}. Verifique as variáveis de entrada no simulador. Isso pode ocorrer se os valores simulados são muito extremos ou se as variáveis selecionadas não têm os coeficientes no modelo. Por favor, ajuste o cenário ou selecione outras variáveis.")
+            st.error(f"Erro ao realizar a predição: {e}. Verifique as variáveis de entrada no simulador.")
             sim_proba = 0.5
-
 
     st.session_state.sim_data = sim_data
     st.session_state.sim_proba = sim_proba
