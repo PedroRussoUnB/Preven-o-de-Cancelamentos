@@ -363,6 +363,12 @@ for col in all_available_features_in_data:
 st.sidebar.header("🔧 1. Construção do Modelo Preditivo")
 st.sidebar.markdown("Selecione os fatores (variáveis) que o modelo deve usar para fazer a previsão.")
 
+# ALTERAÇÃO: Adicionado aviso para o usuário.
+st.sidebar.info("""
+**ℹ️ Dica de Navegação:**
+Ao mudar os fatores abaixo, toda a análise é recalculada. Para uma experiência mais fluida, **adicione ou remova um fator por vez** e aguarde a página atualizar antes de fazer uma nova seleção.
+""")
+
 # Define uma lista mais abrangente de variáveis a serem pré-selecionadas por padrão
 # Usar os nomes TRADUZIDOS (chaves do all_features_translated_dict) para o default
 default_selected_features_translated_keys = [
@@ -403,7 +409,7 @@ selected_features = [all_features_translated_dict[t] for t in selected_features_
 
 # LÓGICA DO RFE NA SIDEBAR
 st.sidebar.markdown("---")
-st.sidebar.header("🔬 2. Refinamento com RFE")
+st.sidebar.header("🔬 2. Refinamento com RFE (Opcional)")
 use_rfe = st.sidebar.checkbox("Usar RFE para selecionar as variáveis mais importantes?", value=False)
 
 # A lista final de features a ser usada no modelo
@@ -496,7 +502,6 @@ with tab1:
         if 'const' in numeric_cols_for_vif:
             numeric_cols_for_vif.remove('const')
 
-        # AQUI ESTÁ A CORREÇÃO: trocamos 'if numeric_cols_for_vif:' por 'if len(numeric_cols_for_vif) > 1:'
         if len(numeric_cols_for_vif) > 1:
             with np.errstate(divide='ignore', invalid='ignore'):
                 vif_data["feature"] = numeric_cols_for_vif
@@ -520,6 +525,7 @@ with tab1:
             st.caption("Valores de VIF acima de 5-10 podem indicar multicolinearidade preocupante, o que pode afetar a estabilidade e a interpretação dos coeficientes do modelo. 'Indefinido' significa multicolinearidade perfeita. Valores mais baixos são preferíveis. O modelo Logístico do Statsmodels, contudo, é robusto a certo grau de multicolinearidade.")
         else:
             st.info("O cálculo do VIF não foi realizado porque ele requer ao menos duas variáveis numéricas no modelo para comparar a colinearidade entre elas.")
+
 
         st.subheader("Gráficos de Curva Logística para Variáveis Chave")
 
@@ -678,7 +684,6 @@ with tab2:
     st.header("🎯 Análise de Impacto dos Fatores de Risco")
     st.markdown("Esta seção detalha como cada variável selecionada influencia a probabilidade de uma reserva ser cancelada. Entender esses impactos é crucial para desenvolver estratégias eficazes de prevenção.")
 
-    # ALTERAÇÃO: EXPLICAÇÃO APRIMORADA DE LOG-ODDS
     st.subheader("Análise dos Coeficientes do Modelo (Log-Odds)")
     with st.expander("Clique para entender e ver os coeficientes em Log-Odds"):
         st.markdown("""
@@ -785,18 +790,19 @@ with tab2:
                 elif odds_ratio > 1:
                     percentage_increase = (odds_ratio - 1) * 100
 
-                    st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
-
-                    if odds_ratio >= 100: # Risco de 10000% ou mais
-                        st.error(f"**RISCO EXTREMAMENTE CRÍTICO!** O Odds Ratio de **{odds_ratio_display}** é imensamente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em mais de {percentage_increase:.0f}%**. Este é um fator de risco **massivo**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real e não aleatório. **Requer atenção imediata.**")
+                    if odds_ratio >= 100:
+                        st.error(f"**RISCO EXTREMAMENTE CRÍTICO!** O Odds Ratio de **{odds_ratio_display}** é imensamente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em mais de {percentage_increase:.0f}%**. Este é um fator de risco **massivo** e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Requer atenção imediata.**")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['deposit_type_Non Refund']:
                             st.markdown("Este é o **maior indicador de risco** na maioria dos modelos. Reservas com este tipo de depósito têm uma chance drasticamente maior de serem canceladas, muitas vezes por falta de pagamento ou comprometimento inicial. É crucial monitorar pagamentos associados a esta condição e considerar políticas de pagamento mais rigorosas ou alternativas para este segmento.")
-                    elif odds_ratio >= 10: # Risco de 900% a 9999%
+                    elif odds_ratio >= 10:
                         st.warning(f"**RISCO MUITO ALTO!** O Odds Ratio de **{odds_ratio_display}** é substancialmente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco **muito forte**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Recomenda-se vigilância.**")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['previous_cancellations']:
                             st.markdown("Um histórico de cancelamentos anteriores é um **fortíssimo preditor** de cancelamento futuro. Indica um padrão de comportamento do cliente que exige atenção imediata e, possivelmente, uma abordagem personalizada ou políticas de pré-pagamento mais rigorosas.")
-                    elif odds_ratio >= 2: # Risco de 100% a 899%
+                    elif odds_ratio >= 2:
                         st.warning(f"**RISCO ELEVADO!** O Odds Ratio de **{odds_ratio_display}** é significativamente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco importante e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Monitore de perto.**")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['market_segment_Online TA']:
                             st.markdown("Canais como OTAs (Online Travel Agencies) frequentemente oferecem maior flexibilidade de cancelamento, o que contribui para o risco. É importante entender as políticas específicas de cada OTA, que podem ter prazos de cancelamento mais longos ou menos restritivos, e tentar converter a reserva para um canal direto oferecendo benefícios exclusivos.")
                         elif feature_name_translated == VAR_TRANSLATIONS['customer_type_Transient']:
@@ -815,6 +821,7 @@ with tab2:
                              st.markdown(f"Se for uma reserva feita por um agente e este fator for de risco, pode indicar que certos agentes têm maior taxa de cancelamento, talvez devido a volume alto ou características de suas reservas. Monitore a performance de agentes específicos.")
                     else: # Odds Ratio entre 1 e 2 (impacto menor, 0.1% a 99%)
                         st.info(f"**RISCO MODERADO/BAIXO!** O Odds Ratio de **{odds_ratio_display}** é ligeiramente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco presente, mas com impacto mais discreto. Sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['lead_time']:
                             st.markdown(f"Para cada dia a mais de antecedência na reserva, a chance de cancelamento aumenta em aproximadamente {percentage_increase:.1f}%. Embora o impacto por dia seja pequeno, para reservas com **muita antecedência (centenas de dias)**, o efeito cumulativo pode ser substancial, tornando a reserva mais vulnerável a mudanças de plano ou a encontrar melhores ofertas. Monitore proativamente reservas com lead time elevado.")
                         elif feature_name_translated == VAR_TRANSLATIONS['adr']:
@@ -832,16 +839,16 @@ with tab2:
                 else: # odds_ratio < 1
                     percentage_decrease = (1 - odds_ratio) * 100
 
-                    st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
-
-                    if odds_ratio <= 0.1: # Proteção de 90% ou mais (Odds Ratio <= 0.1)
+                    if odds_ratio <= 0.1:
                         st.success(f"**FORTE FATOR DE PROTEÇÃO!** O Odds Ratio de **{odds_ratio_display}** é extremamente baixo. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em mais de {percentage_decrease:.0f}%**. Este é um fator protetor **excepcional**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma seu impacto real. **Invista neste aspecto!**")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['is_repeated_guest']:
                             st.markdown("Clientes recorrentes demonstram **lealdade e confiança** no hotel, resultando em uma chance de cancelamento significativamente menor. Eles já conhecem e valorizam a experiência oferecida, tornando-os um segmento de baixo risco e alto valor. Invista pesado na fidelização desses clientes.")
                         elif feature_name_translated == VAR_TRANSLATIONS['total_of_special_requests']:
                             st.markdown("Clientes que fazem pedidos especiais demonstram um **maior engajamento e compromisso** com a estadia e a experiência no hotel, tornando-os menos propensos a cancelar. Isso indica um investimento emocional na reserva, pois o cliente já está personalizando sua experiência, o que reduz a probabilidade de desistência.")
-                    elif odds_ratio <= 0.5: # Proteção de 50% a 90% (Odds Ratio entre 0.1 e 0.5)
+                    elif odds_ratio <= 0.5:
                         st.success(f"**FATOR DE PROTEÇÃO SÓLIDO!** O Odds Ratio de **{odds_ratio_display}** é significativamente menor que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em aproximadamente {percentage_decrease:.1f}%**. Este é um fator protetor **muito valioso**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['booking_changes']:
                             st.markdown("A realização de alterações na reserva sugere que o cliente está **ajustando seus planos em vez de cancelar completamente**, indicando maior comprometimento e flexibilidade. Clientes que interagem para modificar a reserva são mais propensos a mantê-la e menos propensos a desistir totalmente, o que é um sinal positivo.")
                         elif feature_name_translated == VAR_TRANSLATIONS['previous_bookings_not_canceled']:
@@ -850,13 +857,14 @@ with tab2:
                              st.markdown("A presença de crianças ou bebês na reserva, se significativa, pode indicar um planejamento familiar mais robusto e menos propenso a cancelamentos de última hora, pois viagens em família geralmente envolvem mais coordenação e comprometimento prévio.")
                     else: # Odds Ratio entre 0.5 e 1 (proteção menor, 0.1% a 49%)
                         st.info(f"**Fator de Proteção MODERADO!** O Odds Ratio de **{odds_ratio_display}** é ligeiramente menor que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em aproximadamente {percentage_decrease:.1f}%**. É um fator protetor, mas com impacto mais discreto. Sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['required_car_parking_spaces']:
                             st.markdown("Solicitar uma vaga de garagem pode indicar que o cliente tem planos de viagem mais concretos (ex: viagem de carro), ou que ele valoriza comodidades específicas, tornando a reserva mais firme e menos sujeita a cancelamentos por indecisão. É um sinal de comprometimento com a viagem.")
                         elif feature_name_translated == VAR_TRANSLATIONS['children']:
                              st.markdown("A presença de crianças na reserva, se significativa, pode indicar um planejamento familiar mais robusto e menos propenso a cancelamentos de última hora, pois viagens em família geralmente envolvem mais coordenação e comprometimento prévio.")
                         elif feature_name_translated == VAR_TRANSLATIONS['babies']:
                              st.markdown("De forma similar às crianças, a presença de bebês pode estar associada a um planejamento mais cuidadoso e, portanto, a uma menor chance de cancelamento, devido à complexidade adicional de viajar com bebês que exige maior certeza nos planos e menor flexibilidade.")
-                        elif feature_name_translated == VAR_TRANSLATIONS['country_grouped_PRT']: # CORREÇÃO AQUI: 'country_grouped_PRT'
+                        elif feature_name_translated == VAR_TRANSLATIONS['country_grouped_PRT']:
                              st.markdown("A origem do cliente de Portugal (PRT), se significativa, pode ser um fator de proteção ou risco, dependendo da base de dados e do contexto do hotel. Geralmente, clientes locais ou de países próximos podem ter padrões de cancelamento diferentes, talvez com maior familiaridade com o destino ou menor burocracia para viagens.")
                         elif feature_name_translated == VAR_TRANSLATIONS['meal_BB']:
                              st.markdown("O regime de refeição 'Café da Manhã' (BB) pode ser um fator de proteção, indicando um cliente que busca uma experiência mais completa no hotel e está mais propenso a seguir com a reserva. Este cliente pode valorizar as comodidades do hotel além da simples hospedagem.")
@@ -1017,50 +1025,35 @@ with tab3:
             )
 
 
-    # --- Previsão ---
-    final_sim_data_for_prediction = {}
-    for feature in final_features_for_model_training: # Itera sobre as features que o MODELO realmente usa
-        if feature in numerical_features_all or feature in binary_s_features_base:
-            final_sim_data_for_prediction[feature] = sim_data.get(feature, 0)
-        else: # Se a feature é uma dummy gerada de uma categoria original
-            original_cat_name = None
-            for cat_key in CATEGORICAL_COLS_MAP.keys():
-                if feature.startswith(f"{cat_key}_"):
-                    original_cat_name = cat_key
-                    break
-
-            if original_cat_name and original_cat_name in sim_data:
-                selected_cat_value_original = sim_data[original_cat_name]
-                dummy_name_from_selected = f"{original_cat_name}_{selected_cat_value_original.replace(' ', '_').replace('/', '_').replace('-', '_')}"
-
-                final_sim_data_for_prediction[feature] = 1 if feature == dummy_name_from_selected else 0
-            else:
-                final_sim_data_for_prediction[feature] = 0
-
-
+    # --- Previsão (Bloco Robusto) ---
+    # Cria um DataFrame de uma linha com todos os dados da simulação
     sim_df = pd.DataFrame([final_sim_data_for_prediction])
 
-    model_expected_columns = [col for col in model.params.index if col != 'const']
-    temp_sim_df = pd.DataFrame(0, index=[0], columns=model_expected_columns)
-
-    for col, val in sim_df.iloc[0].items():
-        if col in temp_sim_df.columns:
-            temp_sim_df[col] = val
-
-    temp_sim_df_const = sm.add_constant(temp_sim_df, has_constant='add')
-
+    # Garante que todas as colunas que o modelo espera existam, preenchendo com 0 se faltarem
     for col in model.params.index:
-        if col not in temp_sim_df_const.columns:
-            temp_sim_df_const[col] = 0.0
+        if col != 'const' and col not in sim_df.columns:
+            sim_df[col] = 0
 
-    temp_sim_df_final = temp_sim_df_const[model.params.index]
+    # Adiciona a constante para o cálculo do modelo
+    sim_df_const = sm.add_constant(sim_df, has_constant='add')
+
+    # Reordena as colunas para bater exatamente com a ordem que o modelo foi treinado
+    sim_df_final = sim_df_const[model.params.index]
+
+    # Converte tudo para número, forçando erros a se tornarem 'NaN' (Not a Number)
+    sim_df_final = sim_df_final.apply(pd.to_numeric, errors='coerce')
+
+    # Substitui qualquer 'NaN' que possa ter surgido por 0, para segurança máxima
+    sim_df_final.fillna(0, inplace=True)
 
     with np.errstate(over='ignore'):
         try:
-            sim_proba = model.predict(temp_sim_df_final.astype(float))[0]
+            # Envia os dados limpos e garantidos para a predição
+            sim_proba = model.predict(sim_df_final)[0]
         except Exception as e:
             st.error(f"Erro ao realizar a predição: {e}. Verifique as variáveis de entrada no simulador. Isso pode ocorrer se os valores simulados são muito extremos ou se as variáveis selecionadas não têm os coeficientes no modelo. Por favor, ajuste o cenário ou selecione outras variáveis.")
             sim_proba = 0.5
+
 
     st.session_state.sim_data = sim_data
     st.session_state.sim_proba = sim_proba
@@ -1221,58 +1214,56 @@ with tab4:
                         """)
                         recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'hotel_City Hotel':
+                elif feature_name_translated == VAR_TRANSLATIONS['hotel_City Hotel']:
                     st.warning(f"🏨 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Se este fator for significativo, indica que reservas em **Hotéis de Cidade** podem ter um risco de cancelamento maior em comparação com outros tipos de hotel (ex: Resort), devido a características de viagem ou público-alvo distintos, como viagens a negócios mais suscetíveis a alterações de agenda.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'distribution_channel_TA/TO':
+                elif feature_name_translated == VAR_TRANSLATIONS['distribution_channel_TA/TO']:
                    st.warning(f"🤝 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                    st.markdown("O canal de distribuição 'Agência de Viagem/Operadora' pode estar associado a um risco maior de cancelamento, possivelmente devido a políticas de cancelamento mais flexíveis ou a tipos de reservas específicos (ex: pacotes turísticos) intermediados por esses canais que têm maior probabilidade de serem alterados.")
                    recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'meal_SC':
+                elif feature_name_translated == VAR_TRANSLATIONS['meal_SC']:
                    st.warning(f"🍽️ **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                    st.markdown("O regime de refeição 'Sem Refeição' (SC) pode estar associado a um maior risco de cancelamento, talvez indicando um cliente que busca apenas hospedagem básica e tem menos 'laços' com a experiência completa do hotel ou menos comprometimento com a estadia planejada.")
                    recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'total_guests':
+                elif feature_name_translated == VAR_TRANSLATIONS['total_guests']:
                     st.warning(f"👪 **Risco Potencial: {feature_display_name} ({sim_data.get('total_guests', 0)}) (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Um maior número de hóspedes (adultos + crianças + bebês) pode aumentar a complexidade da reserva e a probabilidade de cancelamento. Coordenar planos para mais pessoas é mais difícil, tornando a reserva mais suscetível a mudanças ou desistências de última hora.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'assigned_room_type_Changed':
+                elif feature_name_translated == VAR_TRANSLATIONS['assigned_room_type_Changed']:
                     st.warning(f"🔄 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Se o tipo de quarto atribuído ao cliente foi alterado em relação ao que foi reservado, isso pode indicar um risco de cancelamento. A alteração pode gerar insatisfação, confusão ou incerteza no cliente, levando-o a reconsiderar a reserva.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'is_agent_booking':
+                elif feature_name_translated == VAR_TRANSLATIONS['is_agent_booking']:
                     st.warning(f"🤝 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Se as reservas feitas por um agente são um fator de risco, isso pode indicar que certos agentes têm maior taxa de cancelamento, talvez devido a volume alto ou características de suas reservas. Monitore a performance de agentes específicos.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'is_weekend_stay':
+                elif feature_name_translated == VAR_TRANSLATIONS['is_weekend_stay']:
                     st.warning(f"🗓️ **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Estadias que incluem noites de fim de semana podem ter um risco de cancelamento maior. Viagens de lazer podem ser mais flexíveis e suscetíveis a mudanças de planos de última hora em comparação com viagens de negócios, por exemplo.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name == 'customer_type_Group':
+                elif feature_name_translated == VAR_TRANSLATIONS['customer_type_Group']:
                     st.warning(f"👥 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown(f"Reservas do tipo 'Grupo' podem apresentar uma chance de cancelamento {percentage_increase:.1f}% maior, possivelmente devido à complexidade da coordenação de múltiplos indivíduos.")
 
-                elif feature_model_name == 'market_segment_Undefined':
+                elif feature_name_translated == VAR_TRANSLATIONS['market_segment_Undefined']:
                     st.warning(f"❓ **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                     st.markdown("Um segmento de mercado indefinido pode indicar problemas na origem da reserva ou baixa rastreabilidade, o que pode estar associado a um risco maior de cancelamento por falta de informações claras.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name.startswith('country_grouped_'):
-                    country_code = feature_model_name.replace('country_grouped_', '')
-                    country_display_name_in_map = CATEGORICAL_COLS_MAP['country_grouped'].get(country_code, country_code)
-                    st.warning(f"🌍 **Risco Potencial: Cliente de {country_display_name_in_map} (Odds Ratio: {odds_ratio:.2f})**")
-                    st.markdown(f"Clientes de {country_display_name_in_map}, se significativa, podem ter um risco maior de cancelamento. Isso pode ser devido a padrões de viagem locais ou políticas de reserva comuns na região.")
+                elif feature_name_translated.startswith('País:'):
+                    st.warning(f"🌍 **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
+                    st.markdown(f"Clientes de {feature_name_translated.replace('País: ', '')}, se significativa, podem ter um risco maior de cancelamento. Isso pode ser devido a padrões de viagem locais ou políticas de reserva comuns na região.")
                     recomendacoes_mostradas += 1
 
-                elif feature_model_name in VAR_TRANSLATIONS: # Catch-all para outras dummies de risco
+                elif feature_name_translated in VAR_TRANSLATIONS: # Catch-all para outras dummies de risco
                    st.warning(f"⚠️ **Risco Potencial: {feature_display_name} (Odds Ratio: {odds_ratio:.2f})**")
                    st.markdown(f"Este fator está associado a um risco aumentado de cancelamento. Ações preventivas específicas para {feature_display_name.lower()} devem ser consideradas.")
                    recomendacoes_mostradas += 1
