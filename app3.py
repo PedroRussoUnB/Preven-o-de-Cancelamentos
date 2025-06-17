@@ -496,7 +496,8 @@ with tab1:
         if 'const' in numeric_cols_for_vif:
             numeric_cols_for_vif.remove('const')
 
-        if numeric_cols_for_vif:
+        # AQUI ESTÁ A CORREÇÃO: trocamos 'if numeric_cols_for_vif:' por 'if len(numeric_cols_for_vif) > 1:'
+        if len(numeric_cols_for_vif) > 1:
             with np.errstate(divide='ignore', invalid='ignore'):
                 vif_data["feature"] = numeric_cols_for_vif
                 vif_data["VIF"] = [variance_inflation_factor(X_const_for_vif[numeric_cols_for_vif].values.astype(float), i)
@@ -518,8 +519,7 @@ with tab1:
             st.dataframe(vif_data.sort_values(by="Sortable_VIF", ascending=False).drop(columns="Sortable_VIF"))
             st.caption("Valores de VIF acima de 5-10 podem indicar multicolinearidade preocupante, o que pode afetar a estabilidade e a interpretação dos coeficientes do modelo. 'Indefinido' significa multicolinearidade perfeita. Valores mais baixos são preferíveis. O modelo Logístico do Statsmodels, contudo, é robusto a certo grau de multicolinearidade.")
         else:
-            st.info("Não há variáveis elegíveis para o cálculo de VIF (todas as variáveis selecionadas são constantes ou há apenas uma variável). O VIF é calculado para analisar a relação entre múltiplas variáveis explicativas.")
-
+            st.info("O cálculo do VIF não foi realizado porque ele requer ao menos duas variáveis numéricas no modelo para comparar a colinearidade entre elas.")
 
         st.subheader("Gráficos de Curva Logística para Variáveis Chave")
 
