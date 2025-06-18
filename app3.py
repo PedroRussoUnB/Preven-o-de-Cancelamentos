@@ -361,14 +361,15 @@ for col in all_available_features_in_data:
 
 st.sidebar.header("🔧 Construção do Modelo Preditivo")
 
-# Para que o app não quebre na primeira execução (antes de clicar no botão)
-model_artifacts = None 
+# Para que o app não quebre na primeira execução
+model_artifacts = None
 
 # --- Início do Formulário ---
 with st.sidebar.form(key='form_parametros'):
     st.markdown("**Configure os parâmetros e clique em 'Analisar' para rodar o modelo.**")
-    
-    # Lista de variáveis padrão (mesma lógica de antes, mas dentro do contexto)
+
+    # 1. Seleção inicial de variáveis
+    st.markdown("**1. Selecione os Fatores para Análise:**")
     default_selected_features_translated_keys = [
         'Antecedência da Reserva (dias)', 'Nº de Pedidos Especiais', 'Vaga de Garagem Solicitada',
         'Nº de Alterações na Reserva', 'Nº de Cancelamentos Anteriores', 'Cliente é Recorrente',
@@ -379,38 +380,58 @@ with st.sidebar.form(key='form_parametros'):
         'Segmento: Agência Online (OTA)', 'Segmento: Grupos', 'Segmento: Direto',
         'Tipo de Cliente: Avulso', 'Tipo de Cliente: Grupo Fechado', 'Tipo de Cliente: Contrato',
         'Distribuição: Agência/Operadora', 'Distribuição: Direto', 'Distribuição: Corporativa',
-        'Hotel: Cidade', 'Hotel: Resort',
-        'Regime de Refeição: Café da Manhã', 'Regime de Refeição: Sem Refeição', 'Regime de Refeição: Pensão Completa', 'Regime de Refeição: Meia Pensão',
-        'Quarto Designado: A', 'Tipo de Quarto Atribuído Diferente do Reservado',
-        'Quarto Reservado: A', 'Quarto Reservado: B',
-        'País: Portugal', 'País: Reino Unido', 'País: EUA', 'País: Brasil', 'País: Outros Países'
+        'Hotel: Cidade', 'Hotel: Resort', 'Tipo de Quarto Atribuído Diferente do Reservado'
     ]
     default_selected_translated = [
         t for t in default_selected_features_translated_keys if t in all_features_translated_dict
     ]
-
-    # Widget de seleção de variáveis
     selected_features_translated = st.multiselect(
-        "1. Fatores para Análise:",
+        "Selecione um conjunto amplo de variáveis de interesse:",
         options=sorted(all_features_translated_dict.keys()),
-        default=default_selected_translated
+        default=default_selected_translated,
+        label_visibility="collapsed"
     )
 
     st.markdown("---")
 
-    # Widgets do RFE
-    st.markdown("**2. Refinamento com RFE (Opcional)**")
-    use_rfe = st.checkbox("Usar RFE para refinar a seleção de variáveis?", value=False)
+    # 2. Opção de usar RFE
+    st.markdown("**2. Refinar seleção com RFE (Opcional)**")
+    use_rfe = st.checkbox("Sim, quero usar RFE para otimizar as variáveis.", value=False)
+
+    # Variáveis para guardar a seleção do RFE
+    rfe_candidate_features_translated = []
     num_features_rfe = 1
+
     if use_rfe:
-        num_features_rfe = st.slider(
-            "Quantas variáveis o RFE deve selecionar?",
-            min_value=1,
-            max_value=len(selected_features_translated) if selected_features_translated else 1,
-            value=min(8, len(selected_features_translated)) if selected_features_translated else 1,
-            step=1,
-            help="O RFE avaliará todas as variáveis que você selecionou e manterá apenas o número de fatores mais impactantes que você definir aqui."
-        )
+        st.info("O RFE avaliará apenas as variáveis que você selecionar abaixo.")
+
+        # Opção de selecionar todas as variáveis para o RFE
+        select_all_for_rfe = st.checkbox("Usar todas as variáveis da lista acima para o RFE", value=True)
+
+        if select_all_for_rfe:
+            rfe_candidate_features_translated = selected_features_translated
+            st.multiselect(
+                "Variáveis que serão avaliadas pelo RFE:",
+                options=selected_features_translated,
+                default=rfe_candidate_features_translated,
+                disabled=True
+            )
+        else:
+            rfe_candidate_features_translated = st.multiselect(
+                "Escolha manualmente as variáveis a serem avaliadas pelo RFE:",
+                options=selected_features_translated,
+                default=selected_features_translated # Começa com todas marcadas para facilitar
+            )
+
+        # Slider para definir o número final de variáveis que o RFE deve retornar
+        if rfe_candidate_features_translated:
+            num_features_rfe = st.slider(
+                "Quantas variáveis o RFE deve retornar no final?",
+                min_value=1,
+                max_value=len(rfe_candidate_features_translated),
+                value=min(8, len(rfe_candidate_features_translated)),
+                step=1,
+            )
 
     # Botão de submissão do formulário
     st.markdown("---")
@@ -418,39 +439,50 @@ with st.sidebar.form(key='form_parametros'):
 
 # --- Fim do Formulário ---
 
-# A lógica principal do app SÓ RODA DEPOIS que o botão do formulário é clicado
 if submitted:
     if not selected_features_translated:
-        st.error("Por favor, selecione ao menos uma variável para a análise na barra lateral.")
+        st.error("Por favor, selecione ao menos uma variável no Passo 1.")
         st.stop()
 
-    selected_features = [all_features_translated_dict[t] for t in selected_features_translated]
-    final_features_for_model_training = selected_features
-
+    # Define a lista final de features para o modelo
     if use_rfe:
-        if len(selected_features) >= 2:
-            with st.spinner("Executando RFE para encontrar os melhores fatores..."):
-                X_rfe = data[selected_features]
-                y_rfe = data['is_canceled']
-                rfe_model = LogisticRegression(max_iter=1000, solver='liblinear')
-                rfe_selector = RFE(estimator=rfe_model, n_features_to_select=num_features_rfe)
-                rfe_selector.fit(X_rfe, y_rfe)
-                rfe_selected_mask = rfe_selector.get_support()
-                final_features_for_model_training = X_rfe.columns[rfe_selected_mask].tolist()
+        if not rfe_candidate_features_translated:
+            st.error("Você ativou o RFE, mas não selecionou nenhuma variável para ele avaliar. Por favor, escolha as variáveis no Passo 2.")
+            st.stop()
+        if len(rfe_candidate_features_translated) < num_features_rfe:
+            st.error("O número de variáveis para o RFE avaliar é menor que o número de variáveis que você pediu para ele retornar. Ajuste a seleção.")
+            st.stop()
 
-                original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
-                rfe_features_translated = [original_to_translated_map[f] for f in final_features_for_model_training]
-                st.sidebar.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis para o modelo:")
-                st.sidebar.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
+        with st.spinner(f"Executando RFE em {len(rfe_candidate_features_translated)} variáveis para selecionar as {num_features_rfe} melhores..."):
+            # Converte os nomes das variáveis candidatas para os nomes do dataframe
+            rfe_candidate_features = [all_features_translated_dict[t] for t in rfe_candidate_features_translated]
+            y_rfe = data['is_canceled']
+            X_rfe = data[rfe_candidate_features]
 
+            rfe_model = LogisticRegression(max_iter=1000, solver='liblinear')
+            rfe_selector = RFE(estimator=rfe_model, n_features_to_select=num_features_rfe)
+            rfe_selector.fit(X_rfe, y_rfe)
+            final_features_for_model_training = X_rfe.columns[rfe_selector.get_support()].tolist()
+
+            # Feedback para o usuário
+            original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
+            rfe_features_translated = [original_to_translated_map[f] for f in final_features_for_model_training]
+            st.sidebar.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis:")
+            st.sidebar.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
+    else:
+        # Se o RFE não for usado, o modelo usará todas as variáveis do seletor principal
+        final_features_for_model_training = [all_features_translated_dict[t] for t in selected_features_translated]
+
+    # Treinamento do modelo
     with st.spinner("Treinando modelo e gerando análises... Por favor, aguarde."):
         model_artifacts = train_model(data, final_features_for_model_training)
+
 
 # Se o botão ainda não foi apertado, o restante do código não deve rodar
 if model_artifacts is None:
     st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
     st.stop()
-
+    
 if model_artifacts is None:
     st.stop()
 
