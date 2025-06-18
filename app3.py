@@ -402,11 +402,20 @@ with st.sidebar.form(key='form_parametros'):
 
     st.markdown("---")
 
-    # 2. Opção de otimizar a seleção
-    st.markdown("**2. Otimizar a seleção de variáveis (Opcional)**")
+    # 2. Otimizar seleção com RFE (Opcional)
+    st.markdown("**2. Otimizar seleção com RFE (Opcional)**")
+
+    # Explicação da técnica antes da caixa de seleção
+    st.caption(
+        """
+        O RFE (Eliminação Recursiva de Fatores) é uma técnica que ajuda a encontrar um modelo mais simples e robusto,
+        testando suas variáveis e criando um ranking das mais importantes. Ative a opção abaixo para usar esta funcionalidade.
+        """
+    )
+
     use_refinement = st.checkbox("Sim, quero otimizar a lista de variáveis selecionadas.", value=False)
 
-    # Inicialização das variáveis de controle para evitar NameError
+    # Variáveis de controle inicializadas
     refinement_mode = None
     rfe_candidate_features_translated = []
     manual_selection_translated = []
@@ -421,13 +430,6 @@ with st.sidebar.form(key='form_parametros'):
         )
 
         if refinement_mode == "Deixar o algoritmo RFE escolher as melhores":
-            st.caption(
-                """
-                O RFE (Eliminação Recursiva de Fatores) ajuda a encontrar um modelo mais simples e robusto,
-                testando suas variáveis e criando um ranking das mais importantes.
-                Use as opções abaixo para guiar o RFE.
-                """
-            )
             st.markdown("**2a. Escolha as variáveis que o RFE irá avaliar:**")
             rfe_candidate_features_translated = st.multiselect(
                 "Selecione as variáveis candidatas para o RFE:",
