@@ -320,9 +320,9 @@ def train_model(data, selected_features_list):
         "X_train_smote_max": X_train_smote.max(),
         "X_train_smote_min": X_train_smote.min()
     }
-# ==============================================================================
+# ===
 # CABEÇALHO DA APLICAÇÃO
-# ==============================================================================
+# ===
 col1, col2 = st.columns([1, 4])
 with col1:
     st.image("https://em-content.zobj.net/source/microsoft/379/hotel_1f3e8.png", width=120)
@@ -334,34 +334,43 @@ with col2:
 # --- CARREGAMENTO E TREINAMENTO ---
 data = load_and_preprocess_data()
 
-# Preparar a lista de todas as features disponíveis para seleção na sidebar
-all_available_features_in_data = [col for col in data.columns if col != 'is_canceled']
-
+# Preparar a lista de todas as features disponíveis para seleção na sidebar, com nomes claros.
 all_features_translated_dict = {}
-for col in all_available_features_in_data:
-    if col in VAR_TRANSLATIONS: # Se a coluna tem uma tradução direta no VAR_TRANSLATIONS
+for col in data.columns:
+    if col == 'is_canceled':
+        continue
+    
+    # Tenta encontrar uma tradução direta primeiro
+    if col in VAR_TRANSLATIONS:
         all_features_translated_dict[VAR_TRANSLATIONS[col]] = col
     else:
+        # Se não encontrar, tenta montar o nome a partir das dummies
         found_translation = False
-        for original_col, categories_map in CATEGORICAL_COLS_MAP.items(): # Iterar sobre CATEGORICAL_COLS_MAP para dummies
-            for cat_original, cat_translated_display in categories_map.items():
-                # Constrói o nome da dummy como aparece no DataFrame `data`
-                dummy_name_in_data = f"{original_col}_{cat_original.replace(' ', '_').replace('/', '_').replace('-', '_')}"
+        for original_col, categories_map in CATEGORICAL_COLS_MAP.items():
+            if col.startswith(original_col + '_'):
+                # Encontra a chave original correspondente (lidando com espaços/underscores)
+                matched_key = None
+                for key in categories_map.keys():
+                    if key.replace(' ', '_').replace('/', '_').replace('-', '_') == col.replace(original_col + '_', ''):
+                        matched_key = key
+                        break
 
-                if col == dummy_name_in_data: # Se o nome da coluna corresponde a uma dummy gerada
-                    # A chave para o all_features_translated_dict será o nome da FEATURE ORIGINAL + a tradução da CATEGORIA
-                    # Ex: 'Hotel: Hotel na Cidade'
-                    all_features_translated_dict[f"{VAR_TRANSLATIONS.get(original_col, original_col.replace('_', ' ').title())}: {cat_translated_display}"] = col
+                if matched_key:
+                    cat_translated_display = categories_map[matched_key]
+                    base_translation = VAR_TRANSLATIONS.get(original_col, original_col.replace('_', ' ').title())
+                    # Combina a tradução base com a descrição da categoria
+                    all_features_translated_dict[f"{base_translation}: {cat_translated_display}"] = col
                     found_translation = True
                     break
-            if found_translation:
-                break
-        if not found_translation: # Último fallback para qualquer coluna não traduzida
-             all_features_translated_dict[col.replace('_', ' ').title()] = col
+        if found_translation:
+            continue
+        
+        # Fallback final se nenhuma tradução foi encontrada
+        all_features_translated_dict[col.replace('_', ' ').title()] = col
 
 st.sidebar.header("🔧 Construção do Modelo Preditivo")
 
-# --- Início do Formulário ---
+# - Início do Formulário -
 with st.sidebar.form(key='form_parametros'):
     st.markdown("**Configure os parâmetros e clique em 'Analisar' para rodar o modelo.**")
 
@@ -391,12 +400,13 @@ with st.sidebar.form(key='form_parametros'):
 
     st.markdown("---")
 
-    # 2. Opção de usar "RFE" (agora como um seletor manual)
+   # 2. Opção de usar "RFE" (agora como um seletor manual)
     st.markdown("**2. Usar RFE para refinar a seleção (Opcional)**")
     st.caption(
         """
-        Ao marcar esta opção, você pode criar uma lista final de variáveis para o modelo, 
-        escolhendo a partir da sua seleção inicial.
+        O RFE (Eliminação Recursiva de Fatores) é uma técnica que ajuda a simplificar o modelo,
+        selecionando apenas os fatores mais importantes. Use a opção abaixo para guiar este processo,
+        criando uma lista final de variáveis que o modelo deverá usar.
         """
     )
     use_rfe = st.checkbox("Sim, quero refinar a lista de variáveis para o modelo.", value=False)
@@ -428,7 +438,7 @@ with st.sidebar.form(key='form_parametros'):
     st.markdown("---")
     submitted = st.form_submit_button("✅ Analisar com Fatores Selecionados")
 
-# --- Fim do Formulário ---
+# - Fim do Formulário -
 
 # Lógica de execução após o botão ser pressionado
 if submitted:
@@ -598,12 +608,26 @@ with tab1:
         auc_score = roc_auc_score(y_test, y_pred_proba)
         st.metric(label="Nota de Discernimento (de 0 a 1)", value=f"{auc_score:.3f}")
         st.progress(auc_score)
-        st.caption("""
-        Mede a habilidade do modelo em separar corretamente as classes (reservas que cancelam das que não cancelam).
-        * Um AUC de 0.5 significa que o modelo não é melhor que um chute aleatório.
-        * Um AUC de 1.0 significa que o modelo é perfeito.
-        * **Como é calculado:** É a área sob a Curva ROC (Receiver Operating Characteristic), que plota a Taxa de Verdadeiros Positivos (sensibilidade) versus a Taxa de Falsos Positivos (1 - especificidade) em vários limiares.
+
+        # Explicação dinâmica e detalhada do AUC
+        st.markdown("""
+        **O que é o AUC?**
+        
+        O AUC (do inglês, *Area Under the Curve* ou Área Sob a Curva) representa a **capacidade de discernimento** do modelo. Em termos simples, é a probabilidade de o modelo dar uma pontuação de risco maior para uma reserva que de fato cancela do que para uma que não cancela.
+        
+        **Como é calculado?**
+        
+        Ele é a área sob a **Curva ROC**, que plota a *Taxa de Verdadeiros Positivos* (o quão bem o modelo acerta os cancelamentos) contra a *Taxa de Falsos Positivos* (o quão mal o modelo confunde não-cancelamentos com cancelamentos) em todos os limiares de classificação possíveis.
         """)
+        
+        if auc_score >= 0.9:
+            st.success(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Excelente.** O modelo é extremamente bom em diferenciar uma reserva que será cancelada de uma que não será. É um indicador de alta confiança na capacidade preditiva do modelo.")
+        elif auc_score >= 0.8:
+            st.info(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Bom.** O modelo tem uma forte capacidade de separação entre as classes. É considerado um modelo robusto e confiável para a maioria das aplicações de negócio.")
+        elif auc_score >= 0.7:
+            st.warning(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Aceitável.** O modelo é razoável em suas previsões, mas pode cometer erros. Suas previsões são melhores que o acaso, mas devem ser usadas com certa cautela.")
+        else:
+            st.error(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Fraco ou Ruim.** O modelo tem dificuldade em separar os cancelamentos dos não-cancelamentos. Seus resultados não são muito melhores que uma escolha aleatória e não é recomendado para tomar decisões estratégicas importantes.")
     with c2:
         st.subheader("Curva ROC")
         fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
