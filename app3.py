@@ -1048,7 +1048,7 @@ with tab3:
     sim_df = pd.DataFrame([final_sim_data_for_prediction])
 
     # Garante que todas as colunas que o modelo espera existam, preenchendo com 0 se faltarem
-    for col in model.params.index:st.sidebar.header("🔧 1. Construção do Modelo Preditivo")
+    for col in model.params.index:
         if col != 'const' and col not in sim_df.columns:
             sim_df[col] = 0
 
