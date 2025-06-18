@@ -391,34 +391,22 @@ with st.sidebar.form(key='form_parametros'):
 
     st.markdown("---")
 
-    # 2. Opção de refinar a seleção manualmente
+    # 2. Opção de refinar a seleção manualmente, restaurada e corrigida
     st.markdown("**2. Refinar a seleção de variáveis (Opcional)**")
     use_manual_selection = st.checkbox("Sim, quero escolher manualmente a lista final de variáveis.", value=False)
 
-    # A lista final de variáveis a ser usada
+    # A lista final de variáveis a ser usada no modelo
     final_selection_translated = selected_features_translated
 
     if use_manual_selection:
         st.info("O modelo será treinado usando **exatamente** as variáveis que você marcar abaixo.")
 
-        select_all_for_manual = st.checkbox("Usar todas as variáveis da lista acima", value=True)
-
-        if select_all_for_manual:
-            # Mantém a seleção inicial, mas desabilita o seletor para clareza
-            final_selection_translated = selected_features_translated
-            st.multiselect(
-                "Variáveis Finais para o Modelo:",
-                options=selected_features_translated,
-                default=final_selection_translated,
-                disabled=True
-            )
-        else:
-            # Permite ao usuário escolher a lista final manualmente
-            final_selection_translated = st.multiselect(
-                "Escolha manualmente as variáveis que irão para o modelo:",
-                options=selected_features_translated,
-                default=selected_features_translated
-            )
+        # O seletor para escolher manualmente as variáveis finais. O SLIDER FOI REMOVIDO.
+        final_selection_translated = st.multiselect(
+            "Escolha as variáveis que irão para o modelo final:",
+            options=selected_features_translated, # As opções são as que você escolheu no passo 1
+            default=selected_features_translated # Começa com todas marcadas para facilitar
+        )
 
     # Botão de submissão do formulário
     st.markdown("---")
@@ -426,28 +414,29 @@ with st.sidebar.form(key='form_parametros'):
 
 # --- Fim do Formulário ---
 
-# Lógica de execução após o botão ser pressionado
+# Lógica de execução que usa a "memória" do app
 if submitted:
+    # Se o botão for clicado, o modelo é treinado ou retreinado
     if not final_selection_translated:
         st.error("Nenhuma variável foi selecionada para o modelo. Por favor, ajuste sua seleção.")
         st.stop()
 
-    # A lista de features já é a final, definida pelo usuário
+    # A lista de features já é a final, definida pelo usuário no formulário
     features_to_train = [all_features_translated_dict[t] for t in final_selection_translated]
 
-    # Treinamento do modelo com a lista final de features
     with st.spinner("Treinando modelo e gerando análises..."):
         model_artifacts = train_model(data, features_to_train)
-        # Salva os resultados na "memória" do app
+        # Salva o "bolo" pronto na "memória" do app
         st.session_state.model_artifacts = model_artifacts
 
-# Lógica de controle para carregar o modelo da "memória"
+# Lógica de controle para carregar o modelo da "memória" em recarregamentos rápidos
 if 'model_artifacts' not in st.session_state or st.session_state.model_artifacts is None:
     st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
     st.stop()
 
-# Se um modelo já existe na memória, ele é carregado aqui
+# Se um modelo já existe na memória, ele é carregado para uso imediato
 model_artifacts = st.session_state.model_artifacts
+final_features_for_model_training = model_artifacts["selected_features"]
 
 model = model_artifacts["model"]
 X_train = model_artifacts["X_train"]
