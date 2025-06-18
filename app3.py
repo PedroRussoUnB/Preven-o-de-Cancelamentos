@@ -368,9 +368,11 @@ for col in data.columns:
         # Fallback final se nenhuma tradução foi encontrada
         all_features_translated_dict[col.replace('_', ' ').title()] = col
 
+# ------------------ INÍCIO DO TRECHO A SER ADICIONADO ------------------
+
 st.sidebar.header("🔧 Construção do Modelo Preditivo")
 
-# - Início do Formulário -
+# --- Início do Formulário ---
 with st.sidebar.form(key='form_parametros'):
     st.markdown("**Configure os parâmetros e clique em 'Analisar' para rodar o modelo.**")
 
@@ -380,13 +382,13 @@ with st.sidebar.form(key='form_parametros'):
         'Antecedência da Reserva (dias)', 'Nº de Pedidos Especiais', 'Vaga de Garagem Solicitada',
         'Nº de Alterações na Reserva', 'Nº de Cancelamentos Anteriores', 'Cliente é Recorrente',
         'Preço Médio por Noite (€)', 'Total de Noites da Estadia', 'Reservas Anteriores Válidas',
-        'Nº de Adultos', 'Nº de Crianças', 'Nº de Bebês', 'Reserva Feita por Agente',
-        'Reserva de Empresa', 'Estadia Inclui Fim de Semana', 'Presença de Crianças/Bebês', 'Total de Hóspedes (Adultos + Crianças + Bebês)',
-        'Depósito: Não Reembolsável', 'Depósito: Sem Depósito', 'Depósito: Reembolsável',
-        'Segmento: Agência Online (OTA)', 'Segmento: Grupos', 'Segmento: Direto',
-        'Tipo de Cliente: Avulso', 'Tipo de Cliente: Grupo Fechado', 'Tipo de Cliente: Contrato',
-        'Distribuição: Agência/Operadora', 'Distribuição: Direto', 'Distribuição: Corporativa',
-        'Hotel: Cidade', 'Hotel: Resort', 'Tipo de Quarto Atribuído Diferente do Reservado'
+        'Total de Hóspedes (Adultos + Crianças + Bebês)', 'Reserva Feita por Agente',
+        'Reserva de Empresa', 'Estadia Inclui Fim de Semana', 'Presença de Crianças/Bebês', 'Tipo de Quarto Atribuído Diferente do Reservado',
+        'Depósito: Não Reembolsável', 'Depósito: Sem Depósito',
+        'Segmento de Mercado: Agência Online (OTA)', 'Segmento de Mercado: Grupos', 'Segmento de Mercado: Direto',
+        'Tipo de Cliente: Avulso', 'Tipo de Cliente: Grupo Fechado',
+        'Tipo de Hotel: Hotel na Cidade', 'Tipo de Hotel: Hotel Resort',
+        'Regime de Refeição: Café da Manhã', 'Regime de Refeição: Meia Pensão'
     ]
     default_selected_translated = [
         t for t in default_selected_features_translated_keys if t in all_features_translated_dict
@@ -400,25 +402,32 @@ with st.sidebar.form(key='form_parametros'):
 
     st.markdown("---")
 
-   # 2. Opção de otimizar a seleção
+    # 2. Opção de otimizar a seleção
     st.markdown("**2. Otimizar a seleção de variáveis (Opcional)**")
     use_refinement = st.checkbox("Sim, quero otimizar a lista de variáveis selecionadas.", value=False)
 
-    # Variáveis de controle inicializadas
+    # Inicialização das variáveis de controle para evitar NameError
     refinement_mode = None
-    rfe_candidate_features_translated = selected_features_translated
-    manual_selection_translated = selected_features_translated
+    rfe_candidate_features_translated = []
+    manual_selection_translated = []
     num_features_rfe = 1
 
     if use_refinement:
         refinement_mode = st.radio(
             "Escolha o método de otimização:",
-            ["Deixar o algoritmo RFE escolher as melhores", "Eu quero escolher manualmente a lista final"],
+            options=["Deixar o algoritmo RFE escolher as melhores", "Eu quero escolher manualmente a lista final"],
             index=0,
             help="Escolha se prefere que o algoritmo selecione as melhores variáveis para você (RFE) ou se você mesmo quer montar a lista final."
         )
 
         if refinement_mode == "Deixar o algoritmo RFE escolher as melhores":
+            st.caption(
+                """
+                O RFE (Eliminação Recursiva de Fatores) ajuda a encontrar um modelo mais simples e robusto,
+                testando suas variáveis e criando um ranking das mais importantes.
+                Use as opções abaixo para guiar o RFE.
+                """
+            )
             st.markdown("**2a. Escolha as variáveis que o RFE irá avaliar:**")
             rfe_candidate_features_translated = st.multiselect(
                 "Selecione as variáveis candidatas para o RFE:",
@@ -438,27 +447,28 @@ with st.sidebar.form(key='form_parametros'):
         
         elif refinement_mode == "Eu quero escolher manualmente a lista final":
             st.markdown("**2a. Escolha as variáveis finais para o modelo:**")
+            st.caption("O modelo será treinado usando exatamente as variáveis que você marcar abaixo.")
             manual_selection_translated = st.multiselect(
-                "O modelo será treinado usando exatamente as variáveis que você marcar abaixo:",
+                "Escolha manualmente as variáveis:",
                 options=selected_features_translated,
-                default=selected_features_translated
+                default=selected_features_translated,
+                label_visibility="collapsed"
             )
 
     # Botão de submissão do formulário
     st.markdown("---")
     submitted = st.form_submit_button("✅ Analisar com Fatores Selecionados")
 
-# - Fim do Formulário -
+# --- Fim do Formulário ---
 
-# Lógica de execução após o botão ser pressionado
+# Lógica de execução que usa a "memória" do app
 if submitted:
-    if not final_selection_translated:
-        st.error("Nenhuma variável foi selecionada para o modelo. Por favor, ajuste sua seleção.")
-        st.stop()
-
-    # Define a lista final de features para o modelo com base nas seleções do usuário
     features_to_train = []
+    
     if not use_refinement:
+        if not selected_features_translated:
+            st.error("Nenhuma variável foi selecionada para o modelo. Por favor, ajuste sua seleção no Passo 1.")
+            st.stop()
         features_to_train = [all_features_translated_dict[t] for t in selected_features_translated]
         st.sidebar.info(f"{len(features_to_train)} variáveis selecionadas para o modelo.")
 
@@ -488,23 +498,21 @@ if submitted:
             features_to_train = X_rfe.columns[rfe_selector.get_support()].tolist()
 
             original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
-            rfe_features_translated = [original_to_translated_map[f] for f in features_to_train]
+            rfe_features_translated = [original_to_translated_map.get(f) for f in features_to_train]
             st.sidebar.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis:")
             st.sidebar.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
 
     with st.spinner("Treinando modelo e gerando análises..."):
         model_artifacts = train_model(data, features_to_train)
-        # Salva os resultados na "memória" do app
-        st.session_state.model_artifacts = model_artifacts
+        if model_artifacts:
+             st.session_state.model_artifacts = model_artifacts
 
 # Lógica para carregar o modelo da "memória"
 if 'model_artifacts' not in st.session_state or st.session_state.model_artifacts is None:
     st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
     st.stop()
 
-# Se um modelo já existe na memória, ele é carregado para uso
 model_artifacts = st.session_state.model_artifacts
-# O nome da variável é ajustado para consistência
 final_features_for_model_training = model_artifacts["selected_features"]
 
 model = model_artifacts["model"]
