@@ -391,22 +391,46 @@ with st.sidebar.form(key='form_parametros'):
 
     st.markdown("---")
 
-    # 2. Opção de refinar a seleção manualmente, restaurada e corrigida
-    st.markdown("**2. Refinar a seleção de variáveis (Opcional)**")
-    use_manual_selection = st.checkbox("Sim, quero escolher manualmente a lista final de variáveis.", value=False)
+    # 2. Opção de usar RFE com a nova lógica
+    st.markdown("**2. Otimizar seleção com RFE (Opcional)**")
+    use_rfe = st.checkbox("Sim, quero usar RFE para otimizar as variáveis.", value=False)
 
-    # A lista final de variáveis a ser usada no modelo
-    final_selection_translated = selected_features_translated
+    # Variáveis para guardar a seleção do RFE
+    rfe_candidate_features_translated = []
+    num_features_rfe = 1
 
-    if use_manual_selection:
-        st.info("O modelo será treinado usando **exatamente** as variáveis que você marcar abaixo.")
+    if use_rfe:
+        st.markdown("**2a. Escolha as variáveis que o RFE irá avaliar:**")
+        st.info("Estas são as 'variáveis candidatas'. O RFE irá trabalhar apenas com as que você marcar aqui.")
+        
+        select_all_for_rfe = st.checkbox("Avaliar todas as variáveis selecionadas no Passo 1", value=True)
 
-        # O seletor para escolher manualmente as variáveis finais. O SLIDER FOI REMOVIDO.
-        final_selection_translated = st.multiselect(
-            "Escolha as variáveis que irão para o modelo final:",
-            options=selected_features_translated, # As opções são as que você escolheu no passo 1
-            default=selected_features_translated # Começa com todas marcadas para facilitar
-        )
+        if select_all_for_rfe:
+            rfe_candidate_features_translated = selected_features_translated
+            st.multiselect(
+                "Variáveis candidatas para o RFE:",
+                options=selected_features_translated,
+                default=rfe_candidate_features_translated,
+                disabled=True
+            )
+        else:
+            rfe_candidate_features_translated = st.multiselect(
+                "Escolha manualmente as variáveis candidatas:",
+                options=selected_features_translated,
+                default=selected_features_translated
+            )
+
+        st.markdown("**2b. Quantas variáveis o RFE deve retornar?**")
+        st.info("Das candidatas acima, o RFE irá selecionar o número de melhores variáveis que você definir aqui.")
+        
+        if rfe_candidate_features_translated:
+            num_features_rfe = st.slider(
+                "Número de variáveis finais:",
+                min_value=1,
+                max_value=len(rfe_candidate_features_translated),
+                value=min(8, len(rfe_candidate_features_translated)),
+                step=1,
+            )
 
     # Botão de submissão do formulário
     st.markdown("---")
@@ -417,17 +441,52 @@ with st.sidebar.form(key='form_parametros'):
 # Lógica de execução que usa a "memória" do app
 if submitted:
     # Se o botão for clicado, o modelo é treinado ou retreinado
-    if not final_selection_translated:
-        st.error("Nenhuma variável foi selecionada para o modelo. Por favor, ajuste sua seleção.")
+    if not selected_features_translated:
+        st.error("Nenhuma variável selecionada no Passo 1. Por favor, escolha ao menos uma.")
         st.stop()
 
-    # A lista de features já é a final, definida pelo usuário no formulário
-    features_to_train = [all_features_translated_dict[t] for t in final_selection_translated]
+    features_to_train = []
+    # Decide qual lista de variáveis usar com base na seleção do usuário
+    if use_rfe:
+        if not rfe_candidate_features_translated:
+            st.error("Você ativou o RFE, mas não selecionou nenhuma variável candidata no Passo 2a.")
+            st.stop()
+        if len(rfe_candidate_features_translated) < num_features_rfe:
+            st.error("O número de variáveis para o RFE avaliar é menor que o número que você pediu para ele retornar. Ajuste a seleção.")
+            st.stop()
 
+        with st.spinner(f"Executando RFE em {len(rfe_candidate_features_translated)} variáveis para selecionar as {num_features_rfe} melhores..."):
+            rfe_candidate_features = [all_features_translated_dict[t] for t in rfe_candidate_features_translated]
+            y_rfe = data['is_canceled']
+            X_rfe = data[rfe_candidate_features]
+
+            rfe_model = LogisticRegression(max_iter=1000, solver='liblinear')
+            rfe_selector = RFE(estimator=rfe_model, n_features_to_select=num_features_rfe)
+            rfe_selector.fit(X_rfe, y_rfe)
+            features_to_train = X_rfe.columns[rfe_selector.get_support()].tolist()
+
+            # Feedback para o usuário sobre a seleção do RFE
+            original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
+            rfe_features_translated = [original_to_translated_map[f] for f in features_to_train]
+            st.sidebar.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis:")
+            st.sidebar.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
+    else:
+        # Se RFE não for usado, usa a seleção inicial
+        features_to_train = [all_features_translated_dict[t] for t in selected_features_translated]
+
+    # Treinamento do modelo com a lista final
     with st.spinner("Treinando modelo e gerando análises..."):
         model_artifacts = train_model(data, features_to_train)
-        # Salva o "bolo" pronto na "memória" do app
         st.session_state.model_artifacts = model_artifacts
+
+# Lógica de controle para carregar o modelo da "memória"
+if 'model_artifacts' not in st.session_state or st.session_state.model_artifacts is None:
+    st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
+    st.stop()
+
+# Se um modelo já existe na memória, ele é carregado para uso
+model_artifacts = st.session_state.model_artifacts
+final_features_for_model_training = model_artifacts["selected_features"]
 
 # Lógica de controle para carregar o modelo da "memória" em recarregamentos rápidos
 if 'model_artifacts' not in st.session_state or st.session_state.model_artifacts is None:
