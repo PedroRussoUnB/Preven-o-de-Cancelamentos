@@ -473,7 +473,7 @@ if submitted:
     # Treinamento do modelo
     with st.spinner("Treinando modelo e gerando análises... Por favor, aguarde."):
         model_artifacts = train_model(data, final_features_for_model_training)
-	st.session_state.model_artifacts = model_artifacts
+        st.session_state.model_artifacts = model_artifacts
 
 if 'model_artifacts' not in st.session_state:
     st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para começar.")
