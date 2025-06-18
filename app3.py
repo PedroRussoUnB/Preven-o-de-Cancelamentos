@@ -361,9 +361,6 @@ for col in all_available_features_in_data:
 
 st.sidebar.header("🔧 Construção do Modelo Preditivo")
 
-# Para que o app não quebre na primeira execução
-model_artifacts = None
-
 # --- Início do Formulário ---
 with st.sidebar.form(key='form_parametros'):
     st.markdown("**Configure os parâmetros e clique em 'Analisar' para rodar o modelo.**")
@@ -476,12 +473,14 @@ if submitted:
     # Treinamento do modelo
     with st.spinner("Treinando modelo e gerando análises... Por favor, aguarde."):
         model_artifacts = train_model(data, final_features_for_model_training)
+	st.session_state.model_artifacts = model_artifacts
 
-
-# Se o botão ainda não foi apertado, o restante do código não deve rodar
-if model_artifacts is None:
-    st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
+if 'model_artifacts' not in st.session_state:
+    st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para começar.")
     st.stop()
+
+# Se a memória já tem um modelo, nós o carregamos para uso
+model_artifacts = st.session_state.model_artifacts
     
 if model_artifacts is None:
     st.stop()
