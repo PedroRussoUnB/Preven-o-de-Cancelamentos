@@ -1,50 +1,24 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Código Fonte: app3.py</title>
+    <title>Código Completo - app3.py</title>
     <style>
-        body {
-            background-color: #282c34;
-            color: #abb2bf;
-            font-family: 'Courier New', Courier, monospace;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: 20px auto;
-            background-color: #21252b;
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #61afef;
-            text-align: center;
-            border-bottom: 2px solid #3e4451;
-            padding-bottom: 10px;
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background-color: #1c1f24;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #3e4451;
-            overflow-x: auto;
-        }
-        code {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-        }
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #f4f5f7; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 20px auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { background-color: #007bff; color: white; padding: 15px 25px; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .instructions { background-color: #fff3cd; color: #664d03; padding: 20px 25px; margin: 0; border-bottom: 1px solid #e0e0e0; font-size: 16px;}
+        .instructions strong { color: #d9534f; }
+        pre { background-color: #282c34; color: #abb2bf; padding: 20px; margin: 0; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;}
+        code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Código Fonte do Aplicativo Streamlit (app3.py)</h1>
+        <div class="header">
+            <h1>Código Completo - app3.py</h1>
+        </div>
         <pre><code>
 import streamlit as st
 import pandas as pd
@@ -368,9 +342,9 @@ def train_model(data, selected_features_list):
         "X_train_smote_max": X_train_smote.max(),
         "X_train_smote_min": X_train_smote.min()
     }
-# ==============================================================================
+# ===
 # CABEÇALHO DA APLICAÇÃO
-# ==============================================================================
+# ===
 col1, col2 = st.columns([1, 4])
 with col1:
     st.image("https://em-content.zobj.net/source/microsoft/379/hotel_1f3e8.png", width=120)
@@ -382,128 +356,188 @@ with col2:
 # --- CARREGAMENTO E TREINAMENTO ---
 data = load_and_preprocess_data()
 
-# Preparar a lista de todas as features disponíveis para seleção na sidebar
-all_available_features_in_data = [col for col in data.columns if col != 'is_canceled']
-
+# Preparar a lista de todas as features disponíveis para seleção na sidebar, com nomes claros.
 all_features_translated_dict = {}
-for col in all_available_features_in_data:
-    if col in VAR_TRANSLATIONS: # Se a coluna tem uma tradução direta no VAR_TRANSLATIONS
+for col in data.columns:
+    if col == 'is_canceled':
+        continue
+    
+    # Tenta encontrar uma tradução direta primeiro
+    if col in VAR_TRANSLATIONS:
         all_features_translated_dict[VAR_TRANSLATIONS[col]] = col
     else:
+        # Se não encontrar, tenta montar o nome a partir das dummies
         found_translation = False
-        for original_col, categories_map in CATEGORICAL_COLS_MAP.items(): # Iterar sobre CATEGORICAL_COLS_MAP para dummies
-            for cat_original, cat_translated_display in categories_map.items():
-                # Constrói o nome da dummy como aparece no DataFrame `data`
-                dummy_name_in_data = f"{original_col}_{cat_original.replace(' ', '_').replace('/', '_').replace('-', '_')}"
+        for original_col, categories_map in CATEGORICAL_COLS_MAP.items():
+            if col.startswith(original_col + '_'):
+                # Encontra a chave original correspondente (lidando com espaços/underscores)
+                matched_key = None
+                for key in categories_map.keys():
+                    if key.replace(' ', '_').replace('/', '_').replace('-', '_') == col.replace(original_col + '_', ''):
+                        matched_key = key
+                        break
 
-                if col == dummy_name_in_data: # Se o nome da coluna corresponde a uma dummy gerada
-                    # A chave para o all_features_translated_dict será o nome da FEATURE ORIGINAL + a tradução da CATEGORIA
-                    # Ex: 'Hotel: Hotel na Cidade'
-                    all_features_translated_dict[f"{VAR_TRANSLATIONS.get(original_col, original_col.replace('_', ' ').title())}: {cat_translated_display}"] = col
+                if matched_key:
+                    cat_translated_display = categories_map[matched_key]
+                    base_translation = VAR_TRANSLATIONS.get(original_col, original_col.replace('_', ' ').title())
+                    # Combina a tradução base com a descrição da categoria
+                    all_features_translated_dict[f"{base_translation}: {cat_translated_display}"] = col
                     found_translation = True
                     break
-            if found_translation:
-                break
-        if not found_translation: # Último fallback para qualquer coluna não traduzida
-             all_features_translated_dict[col.replace('_', ' ').title()] = col
+        if found_translation:
+            continue
+        
+        # Fallback final se nenhuma tradução foi encontrada
+        all_features_translated_dict[col.replace('_', ' ').title()] = col
 
+# ------------------ INÍCIO DO TRECHO A SER ADICIONADO ------------------
 
-st.sidebar.header("🔧 1. Construção do Modelo Preditivo")
-st.sidebar.markdown("Selecione os fatores (variáveis) que o modelo deve usar para fazer a previsão.")
+st.sidebar.header("🔧 Construção do Modelo Preditivo")
 
-# ALTERAÇÃO: Adicionado aviso para o usuário.
-st.sidebar.info("""
-**ℹ️ Dica de Navegação:**
-Ao mudar os fatores abaixo, toda a análise é recalculada. Para uma experiência mais fluida, **adicione ou remova um fator por vez** e aguarde a página atualizar antes de fazer uma nova seleção.
-""")
+# --- Início do Formulário ---
+with st.sidebar.form(key='form_parametros'):
+    st.markdown("**Configure os parâmetros e clique em 'Analisar' para rodar o modelo.**")
 
-# Define uma lista mais abrangente de variáveis a serem pré-selecionadas por padrão
-# Usar os nomes TRADUZIDOS (chaves do all_features_translated_dict) para o default
-default_selected_features_translated_keys = [
-    'Antecedência da Reserva (dias)', 'Nº de Pedidos Especiais', 'Vaga de Garagem Solicitada',
-    'Nº de Alterações na Reserva', 'Nº de Cancelamentos Anteriores', 'Cliente é Recorrente',
-    'Preço Médio por Noite (€)', 'Total de Noites da Estadia', 'Reservas Anteriores Válidas',
-    'Nº de Adultos', 'Nº de Crianças', 'Nº de Bebês', 'Reserva Feita por Agente',
-    'Reserva de Empresa', 'Estadia Inclui Fim de Semana', 'Presença de Crianças/Bebês', 'Total de Hóspedes (Adultos + Crianças + Bebês)',
-    'Depósito: Não Reembolsável', 'Depósito: Sem Depósito', 'Depósito: Reembolsável',
-    'Segmento: Agência Online (OTA)', 'Segmento: Grupos', 'Segmento: Direto',
-    'Tipo de Cliente: Avulso', 'Tipo de Cliente: Grupo Fechado', 'Tipo de Cliente: Contrato',
-    'Distribuição: Agência/Operadora', 'Distribuição: Direto', 'Distribuição: Corporativa',
-    'Hotel: Cidade', 'Hotel: Resort',
-    'Regime de Refeição: Café da Manhã', 'Regime de Refeição: Sem Refeição', 'Regime de Refeição: Pensão Completa', 'Regime de Refeição: Meia Pensão',
-    'Quarto Designado: A', 'Tipo de Quarto Atribuído Diferente do Reservado',
-    'Quarto Reservado: A', 'Quarto Reservado: B',
-    'País: Portugal', 'País: Reino Unido', 'País: EUA', 'País: Brasil', 'País: Outros Países'
-]
+    # 1. Seleção inicial de variáveis
+    st.markdown("**1. Selecione os Fatores para Análise:**")
+    default_selected_features_translated_keys = [
+        'Antecedência da Reserva (dias)', 'Nº de Pedidos Especiais', 'Vaga de Garagem Solicitada',
+        'Nº de Alterações na Reserva', 'Nº de Cancelamentos Anteriores', 'Cliente é Recorrente',
+        'Preço Médio por Noite (€)', 'Total de Noites da Estadia', 'Reservas Anteriores Válidas',
+        'Total de Hóspedes (Adultos + Crianças + Bebês)', 'Reserva Feita por Agente',
+        'Reserva de Empresa', 'Estadia Inclui Fim de Semana', 'Presença de Crianças/Bebês', 'Tipo de Quarto Atribuído Diferente do Reservado',
+        'Depósito: Não Reembolsável', 'Depósito: Sem Depósito',
+        'Segmento de Mercado: Agência Online (OTA)', 'Segmento de Mercado: Grupos', 'Segmento de Mercado: Direto',
+        'Tipo de Cliente: Avulso', 'Tipo de Cliente: Grupo Fechado',
+        'Tipo de Hotel: Hotel na Cidade', 'Tipo de Hotel: Hotel Resort',
+        'Regime de Refeição: Café da Manhã', 'Regime de Refeição: Meia Pensão'
+    ]
+    default_selected_translated = [
+        t for t in default_selected_features_translated_keys if t in all_features_translated_dict
+    ]
+    selected_features_translated = st.multiselect(
+        "Selecione um conjunto amplo de variáveis de interesse:",
+        options=sorted(all_features_translated_dict.keys()),
+        default=default_selected_translated,
+        label_visibility="collapsed"
+    )
 
-# Filtrar a lista padrão para incluir apenas as que realmente estão nas opções disponíveis
-default_selected_translated = [
-    t for t in default_selected_features_translated_keys if t in all_features_translated_dict
-]
+    st.markdown("---")
 
-selected_features_translated = st.sidebar.multiselect(
-    "Escolha os fatores para análise (selecione quantas desejar):",
-    options=sorted(all_features_translated_dict.keys()),
-    default=default_selected_translated
-)
+    # 2. Otimizar seleção com RFE (Opcional)
+    st.markdown("**2. Otimizar seleção com RFE (Opcional)**")
 
-if not selected_features_translated:
-    st.error("Por favor, selecione ao menos uma variável para a análise na barra lateral.")
-    st.stop()
+    # Explicação da técnica antes da caixa de seleção
+    st.caption(
+        """
+        O RFE (Eliminação Recursiva de Fatores) é uma técnica que ajuda a encontrar um modelo mais simples e robusto,
+        testando suas variáveis e criando um ranking das mais importantes. Ative a opção abaixo para usar esta funcionalidade.
+        """
+    )
 
+    use_refinement = st.checkbox("Sim, quero otimizar a lista de variáveis selecionadas.", value=False)
 
-# Converter de volta para os nomes das colunas originais/dummy para o modelo
-selected_features = [all_features_translated_dict[t] for t in selected_features_translated]
+    # Variáveis de controle inicializadas
+    refinement_mode = None
+    rfe_candidate_features_translated = []
+    manual_selection_translated = []
+    num_features_rfe = 1
 
-# LÓGICA DO RFE NA SIDEBAR
-st.sidebar.markdown("---")
-st.sidebar.header("🔬 2. Refinamento com RFE (Opcional)")
-use_rfe = st.sidebar.checkbox("Usar RFE para selecionar as variáveis mais importantes?", value=False)
-
-# A lista final de features a ser usada no modelo
-final_features_for_model_training = selected_features
-
-if use_rfe:
-    if len(selected_features) < 2:
-        st.sidebar.warning("Selecione ao menos 2 variáveis para usar o RFE.")
-    else:
-        num_features_rfe = st.sidebar.slider(
-            "Quantas variáveis o RFE deve selecionar?",
-            min_value=1,
-            max_value=len(selected_features),
-            value=min(8, len(selected_features)),  # Padrão para 8 ou o máximo disponível
-            step=1,
-            help="O RFE (Recursive Feature Elimination) avaliará todas as variáveis que você selecionou e manterá apenas o número de fatores mais impactantes que você definir aqui."
+    if use_refinement:
+        refinement_mode = st.radio(
+            "Escolha o método de otimização:",
+            options=["Deixar o algoritmo RFE escolher as melhores", "Eu quero escolher manualmente a lista final"],
+            index=0,
+            help="Escolha se prefere que o algoritmo selecione as melhores variáveis para você (RFE) ou se você mesmo quer montar a lista final."
         )
 
-        with st.sidebar:
-            with st.spinner("Executando RFE para encontrar os melhores fatores..."):
-                X_rfe = data[selected_features]
-                y_rfe = data['is_canceled']
+        if refinement_mode == "Deixar o algoritmo RFE escolher as melhores":
+            st.markdown("**2a. Escolha as variáveis que o RFE irá avaliar:**")
+            rfe_candidate_features_translated = st.multiselect(
+                "Selecione as variáveis candidatas para o RFE:",
+                options=selected_features_translated,
+                default=selected_features_translated
+            )
+            
+            st.markdown("**2b. Quantas variáveis o RFE deve retornar?**")
+            if rfe_candidate_features_translated:
+                num_features_rfe = st.slider(
+                    "Número de variáveis finais:",
+                    min_value=1,
+                    max_value=len(rfe_candidate_features_translated),
+                    value=min(8, len(rfe_candidate_features_translated)),
+                    step=1,
+                )
+        
+        elif refinement_mode == "Eu quero escolher manualmente a lista final":
+            st.markdown("**2a. Escolha as variáveis finais para o modelo:**")
+            st.caption("O modelo será treinado usando exatamente as variáveis que você marcar abaixo.")
+            manual_selection_translated = st.multiselect(
+                "Escolha manualmente as variáveis:",
+                options=selected_features_translated,
+                default=selected_features_translated,
+                label_visibility="collapsed"
+            )
 
-                # Usar um modelo scikit-learn simples para o seletor RFE
-                rfe_model = LogisticRegression(max_iter=1000, solver='liblinear')
-                rfe_selector = RFE(estimator=rfe_model, n_features_to_select=num_features_rfe)
-                rfe_selector.fit(X_rfe, y_rfe)
+    # Botão de submissão do formulário
+    st.markdown("---")
+    submitted = st.form_submit_button("✅ Analisar com Fatores Selecionados")
 
-                # Obter as features selecionadas pelo RFE
-                rfe_selected_mask = rfe_selector.get_support()
-                final_features_for_model_training = X_rfe.columns[rfe_selected_mask].tolist()
+# --- Fim do Formulário ---
 
-                # Criar um mapa reverso para obter os nomes traduzidos das features selecionadas
-                original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
-                rfe_features_translated = [original_to_translated_map[f] for f in final_features_for_model_training]
+# Lógica de execução que usa a "memória" do app
+if submitted:
+    features_to_train = []
+    
+    if not use_refinement:
+        if not selected_features_translated:
+            st.error("Nenhuma variável foi selecionada para o modelo. Por favor, ajuste sua seleção no Passo 1.")
+            st.stop()
+        features_to_train = [all_features_translated_dict[t] for t in selected_features_translated]
+        st.sidebar.info(f"{len(features_to_train)} variáveis selecionadas para o modelo.")
 
-                st.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis para o modelo:")
-                st.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
-                st.caption("O modelo e as análises a seguir serão baseados nesta seleção refinada.")
+    elif refinement_mode == "Eu quero escolher manualmente a lista final":
+        if not manual_selection_translated:
+            st.error("Você escolheu a seleção manual, mas não marcou nenhuma variável. Por favor, ajuste sua seleção.")
+            st.stop()
+        features_to_train = [all_features_translated_dict[t] for t in manual_selection_translated]
+        st.sidebar.success(f"{len(features_to_train)} variáveis selecionadas manualmente para o modelo.")
 
-# Treina o modelo com a lista final de features (seja manual ou refinada pelo RFE)
-model_artifacts = train_model(data, final_features_for_model_training)
+    elif refinement_mode == "Deixar o algoritmo RFE escolher as melhores":
+        if not rfe_candidate_features_translated:
+            st.error("Você ativou o RFE, mas não selecionou nenhuma variável candidata no Passo 2a.")
+            st.stop()
+        if len(rfe_candidate_features_translated) < num_features_rfe:
+            st.error("O número de variáveis para o RFE avaliar é menor que o número que você pediu para ele retornar. Ajuste a seleção.")
+            st.stop()
 
+        with st.spinner(f"Executando RFE em {len(rfe_candidate_features_translated)} variáveis para selecionar as {num_features_rfe} melhores..."):
+            rfe_candidate_features = [all_features_translated_dict[t] for t in rfe_candidate_features_translated]
+            y_rfe = data['is_canceled']
+            X_rfe = data[rfe_candidate_features]
 
-if model_artifacts is None:
+            rfe_model = LogisticRegression(max_iter=1000, solver='liblinear')
+            rfe_selector = RFE(estimator=rfe_model, n_features_to_select=num_features_rfe)
+            rfe_selector.fit(X_rfe, y_rfe)
+            features_to_train = X_rfe.columns[rfe_selector.get_support()].tolist()
+
+            original_to_translated_map = {v: k for k, v in all_features_translated_dict.items()}
+            rfe_features_translated = [original_to_translated_map.get(f) for f in features_to_train]
+            st.sidebar.success(f"RFE selecionou as seguintes {len(rfe_features_translated)} variáveis:")
+            st.sidebar.dataframe(pd.DataFrame({'Fatores Selecionados pelo RFE': sorted(rfe_features_translated)}), use_container_width=True)
+
+    with st.spinner("Treinando modelo e gerando análises..."):
+        model_artifacts = train_model(data, features_to_train)
+        if model_artifacts:
+             st.session_state.model_artifacts = model_artifacts
+
+# Lógica para carregar o modelo da "memória"
+if 'model_artifacts' not in st.session_state or st.session_state.model_artifacts is None:
+    st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Analisar' para gerar os resultados.")
     st.stop()
+
+model_artifacts = st.session_state.model_artifacts
+final_features_for_model_training = model_artifacts["selected_features"]
 
 model = model_artifacts["model"]
 X_train = model_artifacts["X_train"]
@@ -645,12 +679,26 @@ with tab1:
         auc_score = roc_auc_score(y_test, y_pred_proba)
         st.metric(label="Nota de Discernimento (de 0 a 1)", value=f"{auc_score:.3f}")
         st.progress(auc_score)
-        st.caption("""
-        Mede a habilidade do modelo em separar corretamente as classes (reservas que cancelam das que não cancelam).
-        * Um AUC de 0.5 significa que o modelo não é melhor que um chute aleatório.
-        * Um AUC de 1.0 significa que o modelo é perfeito.
-        * **Como é calculado:** É a área sob a Curva ROC (Receiver Operating Characteristic), que plota a Taxa de Verdadeiros Positivos (sensibilidade) versus a Taxa de Falsos Positivos (1 - especificidade) em vários limiares.
+
+        # Explicação dinâmica e detalhada do AUC
+        st.markdown("""
+        **O que é o AUC?**
+        
+        O AUC (do inglês, *Area Under the Curve* ou Área Sob a Curva) representa a **capacidade de discernimento** do modelo. Em termos simples, é a probabilidade de o modelo dar uma pontuação de risco maior para uma reserva que de fato cancela do que para uma que não cancela.
+        
+        **Como é calculado?**
+        
+        Ele é a área sob a **Curva ROC**, que plota a *Taxa de Verdadeiros Positivos* (o quão bem o modelo acerta os cancelamentos) contra a *Taxa de Falsos Positivos* (o quão mal o modelo confunde não-cancelamentos com cancelamentos) em todos os limiares de classificação possíveis.
         """)
+        
+        if auc_score >= 0.9:
+            st.success(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Excelente.** O modelo é extremamente bom em diferenciar uma reserva que será cancelada de uma que não será. É um indicador de alta confiança na capacidade preditiva do modelo.")
+        elif auc_score >= 0.8:
+            st.info(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Bom.** O modelo tem uma forte capacidade de separação entre as classes. É considerado um modelo robusto e confiável para a maioria das aplicações de negócio.")
+        elif auc_score >= 0.7:
+            st.warning(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Aceitável.** O modelo é razoável em suas previsões, mas pode cometer erros. Suas previsões são melhores que o acaso, mas devem ser usadas com certa cautela.")
+        else:
+            st.error(f"**Análise do Resultado ({auc_score:.3f}): Discernimento Fraco ou Ruim.** O modelo tem dificuldade em separar os cancelamentos dos não-cancelamentos. Seus resultados não são muito melhores que uma escolha aleatória e não é recomendado para tomar decisões estratégicas importantes.")
     with c2:
         st.subheader("Curva ROC")
         fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
@@ -768,14 +816,14 @@ with tab2:
     Esta tabela exibe a **Força do Impacto** (Odds Ratio) de cada fator (variável) que você selecionou sobre a **chance de cancelamento** de uma reserva, mantendo os outros fatores constantes. Além disso, mostra a **Significância Estatística** do impacto.
 
     * **O que é o Odds Ratio e como é calculado?**
-        O Odds Ratio é derivado dos coeficientes do modelo de Regressão Logística. Em um modelo logístico, os coeficientes <span class="math-inline">\(\\\\beta\)</span> representam o impacto de cada variável na **log-odds** do evento (cancelamento). Para converter a log-odds de volta para uma medida de chance mais intuitiva (as odds), usamos a função exponencial:
+        O Odds Ratio é derivado dos coeficientes do modelo de Regressão Logística. Em um modelo logístico, os coeficientes $(\\beta)$ representam o impacto de cada variável na **log-odds** do evento (cancelamento). Para converter a log-odds de volta para uma medida de chance mais intuitiva (as odds), usamos a função exponencial:
         $$ \\text{Odds Ratio} = e^{\\beta} $$
-        Como a função exponencial (<span class="math-inline">e^x</span>) é sempre positiva para qualquer número real <span class="math-inline">x</span>, o Odds Ratio será **sempre um número positivo (<span class="math-inline">\> 0</span>)**.
+        Como a função exponencial ($e^x$) é sempre positiva para qualquer número real $x$, o Odds Ratio será **sempre um número positivo ($> 0$)**.
 
     * **Interpretando o Odds Ratio:**
-        * **Odds Ratio > 1 (Vermelho):** O fator **aumenta a chance de cancelamento**. Isso ocorre quando o coeficiente <span class="math-inline">\(\\\\beta\)</span> da variável é positivo. Quanto maior o Odds Ratio, maior é o aumento. Por exemplo, um valor de **1.5** significa que a chance de cancelar é **50% maior** (1.5 - 1 = 0.5, ou 50%) para cada unidade de aumento no fator (para variáveis contínuas) ou quando a categoria do fator está presente (para variáveis binárias).
-        * **Odds Ratio < 1 (Verde):** O fator **diminui a chance de cancelamento** (é um fator de proteção). Isso ocorre quando o coeficiente <span class="math-inline">\(\\\\beta\)</span> da variável é negativo. Quanto mais próximo de 0 o Odds Ratio (ou seja, quanto mais negativo o coeficiente), maior a diminuição da chance. Por exemplo, um valor de **0.7** significa que a chance de cancelar é **30% menor** (1 - 0.7 = 0.3, ou 30%) para cada unidade de aumento no fator (ou quando a categoria está ativa).
-        * **Odds Ratio = 1 (ou muito próximo):** O fator **não tem impacto estatisticamente relevante** na chance de cancelamento. Isso ocorre quando o coeficiente <span class="math-inline">\(\\\\beta\)</span> da variável é próximo de zero. Sua presença ou variação não altera significativamente a probabilidade de cancelamento.
+        * **Odds Ratio > 1 (Vermelho):** O fator **aumenta a chance de cancelamento**. Isso ocorre quando o coeficiente $(\\beta)$ da variável é positivo. Quanto maior o Odds Ratio, maior é o aumento. Por exemplo, um valor de **1.5** significa que a chance de cancelar é **50% maior** (1.5 - 1 = 0.5, ou 50%) para cada unidade de aumento no fator (para variáveis contínuas) ou quando a categoria do fator está presente (para variáveis binárias).
+        * **Odds Ratio < 1 (Verde):** O fator **diminui a chance de cancelamento** (é um fator de proteção). Isso ocorre quando o coeficiente $(\\beta)$ da variável é negativo. Quanto mais próximo de 0 o Odds Ratio (ou seja, quanto mais negativo o coeficiente), maior a diminuição da chance. Por exemplo, um valor de **0.7** significa que a chance de cancelar é **30% menor** (1 - 0.7 = 0.3, ou 30%) para cada unidade de aumento no fator (ou quando a categoria está ativa).
+        * **Odds Ratio = 1 (ou muito próximo):** O fator **não tem impacto estatisticamente relevante** na chance de cancelamento. Isso ocorre quando o coeficiente $(\\beta)$ da variável é próximo de zero. Sua presença ou variação não altera significativamente a probabilidade de cancelamento.
 
     * **P-valor:** Indica a probabilidade de que o impacto observado do fator seja apenas por acaso. Um P-valor baixo (tipicamente **< 0.05**) sugere que o impacto é estatisticamente **real** e não fruto da sorte, sendo confiável para tomada de decisão.
     * **Significância:** Baseado no P-valor. 'Significativo' indica que podemos confiar no impacto do fator para a previsão de cancelamento. 'Não Significativo' significa que o efeito observado pode ser apenas aleatório e não deve ser usado para basear ações.
@@ -840,17 +888,17 @@ with tab2:
 
                     if odds_ratio >= 100:
                         st.error(f"**RISCO EXTREMAMENTE CRÍTICO!** O Odds Ratio de **{odds_ratio_display}** é imensamente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em mais de {percentage_increase:.0f}%**. Este é um fator de risco **massivo** e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Requer atenção imediata.**")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos <span class="math-inline">\(\{odds\_ratio\_display\} \- 1\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['deposit_type_Non Refund']:
                             st.markdown("Este é o **maior indicador de risco** na maioria dos modelos. Reservas com este tipo de depósito têm uma chance drasticamente maior de serem canceladas, muitas vezes por falta de pagamento ou comprometimento inicial. É crucial monitorar pagamentos associados a esta condição e considerar políticas de pagamento mais rigorosas ou alternativas para este segmento.")
                     elif odds_ratio >= 10:
                         st.warning(f"**RISCO MUITO ALTO!** O Odds Ratio de **{odds_ratio_display}** é substancialmente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco **muito forte**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Recomenda-se vigilância.**")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos <span class="math-inline">\(\{odds\_ratio\_display\} \- 1\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['previous_cancellations']:
                             st.markdown("Um histórico de cancelamentos anteriores é um **fortíssimo preditor** de cancelamento futuro. Indica um padrão de comportamento do cliente que exige atenção imediata e, possivelmente, uma abordagem personalizada ou políticas de pré-pagamento mais rigorosas.")
                     elif odds_ratio >= 2:
                         st.warning(f"**RISCO ELEVADO!** O Odds Ratio de **{odds_ratio_display}** é significativamente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco importante e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real. **Monitore de perto.**")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos <span class="math-inline">\(\{odds\_ratio\_display\} \- 1\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['market_segment_Online TA']:
                             st.markdown("Canais como OTAs (Online Travel Agencies) frequentemente oferecem maior flexibilidade de cancelamento, o que contribui para o risco. É importante entender as políticas específicas de cada OTA, que podem ter prazos de cancelamento mais longos ou menos restritivos, e tentar converter a reserva para um canal direto oferecendo benefícios exclusivos.")
                         elif feature_name_translated == VAR_TRANSLATIONS['customer_type_Transient']:
@@ -869,7 +917,7 @@ with tab2:
                              st.markdown(f"Se for uma reserva feita por um agente e este fator for de risco, pode indicar que certos agentes têm maior taxa de cancelamento, talvez devido a volume alto ou características de suas reservas. Monitore a performance de agentes específicos.")
                     else: # Odds Ratio entre 1 e 2 (impacto menor, 0.1% a 99%)
                         st.info(f"**RISCO MODERADO/BAIXO!** O Odds Ratio de **{odds_ratio_display}** é ligeiramente maior que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **aumenta a chance de cancelamento em aproximadamente {percentage_increase:.1f}%**. É um fator de risco presente, mas com impacto mais discreto. Sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos <span class="math-inline">\(\{odds\_ratio\_display\} \- 1\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem, calculamos $({odds_ratio_display} - 1) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['lead_time']:
                             st.markdown(f"Para cada dia a mais de antecedência na reserva, a chance de cancelamento aumenta em aproximadamente {percentage_increase:.1f}%. Embora o impacto por dia seja pequeno, para reservas com **muita antecedência (centenas de dias)**, o efeito cumulativo pode ser substancial, tornando a reserva mais vulnerável a mudanças de plano ou a encontrar melhores ofertas. Monitore proativamente reservas com lead time elevado.")
                         elif feature_name_translated == VAR_TRANSLATIONS['adr']:
@@ -889,14 +937,14 @@ with tab2:
 
                     if odds_ratio <= 0.1:
                         st.success(f"**FORTE FATOR DE PROTEÇÃO!** O Odds Ratio de **{odds_ratio_display}** é extremamente baixo. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em mais de {percentage_decrease:.0f}%**. Este é um fator protetor **excepcional**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma seu impacto real. **Invista neste aspecto!**")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos <span class="math-inline">\(1 \- \{odds\_ratio\_display\}\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['is_repeated_guest']:
                             st.markdown("Clientes recorrentes demonstram **lealdade e confiança** no hotel, resultando em uma chance de cancelamento significativamente menor. Eles já conhecem e valorizam a experiência oferecida, tornando-os um segmento de baixo risco e alto valor. Invista pesado na fidelização desses clientes.")
                         elif feature_name_translated == VAR_TRANSLATIONS['total_of_special_requests']:
                             st.markdown("Clientes que fazem pedidos especiais demonstram um **maior engajamento e compromisso** com a estadia e a experiência no hotel, tornando-os menos propensos a cancelar. Isso indica um investimento emocional na reserva, pois o cliente já está personalizando sua experiência, o que reduz a probabilidade de desistência.")
                     elif odds_ratio <= 0.5:
                         st.success(f"**FATOR DE PROTEÇÃO SÓLIDO!** O Odds Ratio de **{odds_ratio_display}** é significativamente menor que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em aproximadamente {percentage_decrease:.1f}%**. Este é um fator protetor **muito valioso**, e sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos <span class="math-inline">\(1 \- \{odds\_ratio\_display\}\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['booking_changes']:
                             st.markdown("A realização de alterações na reserva sugere que o cliente está **ajustando seus planos em vez de cancelar completamente**, indicando maior comprometimento e flexibilidade. Clientes que interagem para modificar a reserva são mais propensos a mantê-la e menos propensos a desistir totalmente, o que é um sinal positivo.")
                         elif feature_name_translated == VAR_TRANSLATIONS['previous_bookings_not_canceled']:
@@ -905,7 +953,7 @@ with tab2:
                              st.markdown("A presença de crianças ou bebês na reserva, se significativa, pode indicar um planejamento familiar mais robusto e menos propenso a cancelamentos de última hora, pois viagens em família geralmente envolvem mais coordenação e comprometimento prévio.")
                     else: # Odds Ratio entre 0.5 e 1 (proteção menor, 0.1% a 49%)
                         st.info(f"**Fator de Proteção MODERADO!** O Odds Ratio de **{odds_ratio_display}** é ligeiramente menor que 1. Isso indica que a presença ou aumento de '{feature_name_translated}' **diminui a chance de cancelamento em aproximadamente {percentage_decrease:.1f}%**. É um fator protetor, mas com impacto mais discreto. Sua significância estatística (P-valor: {p_value:.3f} < 0.05) confirma que seu impacto é real.")
-                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos <span class="math-inline">\(1 \- \{odds\_ratio\_display\}\) \\\\times 100\\\\%</span>.")
+                        st.markdown(f"**Como interpretar a variação percentual:** Um Odds Ratio de {odds_ratio_display} significa que a cada unidade de aumento neste fator (ou quando a categoria está presente), a chance de cancelamento é multiplicada por {odds_ratio_display}. Para expressar isso em porcentagem de diminuição, calculamos $(1 - {odds_ratio_display}) \\times 100\\%$.")
                         if feature_name_translated == VAR_TRANSLATIONS['required_car_parking_spaces']:
                             st.markdown("Solicitar uma vaga de garagem pode indicar que o cliente tem planos de viagem mais concretos (ex: viagem de carro), ou que ele valoriza comodidades específicas, tornando a reserva mais firme e menos sujeita a cancelamentos por indecisão. É um sinal de comprometimento com a viagem.")
                         elif feature_name_translated == VAR_TRANSLATIONS['children']:
@@ -1073,8 +1121,8 @@ with tab3:
             )
 
 
-    # --- Previsão (Bloco Final e Corrigido) ---
-    # Passo 1: Construir o dicionário de dados para a predição a partir dos inputs do usuário
+    # --- Previsão (Bloco Robusto) ---
+    # Cria um DataFrame de uma linha com todos os dados da simulação
     final_sim_data_for_prediction = {}
     for feature in final_features_for_model_training: # Itera sobre as features que o MODELO realmente usa
         if feature in numerical_features_all or feature in binary_s_features_base:
@@ -1123,7 +1171,6 @@ with tab3:
         except Exception as e:
             st.error(f"Erro ao realizar a predição: {e}. Verifique as variáveis de entrada no simulador.")
             sim_proba = 0.5
-
 
     st.session_state.sim_data = sim_data
     st.session_state.sim_proba = sim_proba
@@ -1470,3 +1517,7 @@ with tab4:
                * **Comunicação Padrão Otimizada:** Certifique-se de que todas as comunicações automáticas (e-mails de confirmação, lembretes de pagamento, informações de check-in) sejam claras, amigáveis e incluam informações essenciais para evitar dúvidas que possam levar a cancelamentos.
                * **Canais Abertos:** Tenha uma equipe pronta para responder rapidamente a quaisquer dúvidas ou solicitações do cliente, oferecendo suporte contínuo.
                """)
+    </script>
+
+</body>
+</html>
