@@ -327,7 +327,7 @@ col1, col2 = st.columns([1, 4])
 with col1:
     st.image("https://em-content.zobj.net/source/microsoft/379/hotel_1f3e8.png", width=120)
 with col2:
-    st.title("Sentinela de Reservas: Análise Preditiva de Cancelamentos")
+    st.title("Painel de Controle de Risco: Análise Preditiva de Cancelamentos")
     st.markdown("Ferramenta de Business Intelligence para entender os motivos de cancelamentos de reservas hoteleiras e como agir para reduzir perdas.")
     st.markdown("Desenvolvido por: **Pedro Russo e Daniel Vianna**")
 
