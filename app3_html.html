@@ -349,8 +349,8 @@ col1, col2 = st.columns([1, 4])
 with col1:
     st.image("https://em-content.zobj.net/source/microsoft/379/hotel_1f3e8.png", width=120)
 with col2:
-    st.title("Painel Estratégico de Prevenção de Cancelamentos")
-    st.markdown("Uma ferramenta de Business Intelligence para entender *por que* reservas são canceladas e *como* agir para reduzir perdas.")
+    st.title("Painel de Controle de Risco: Análise Preditiva de Cancelamentos")
+    st.markdown("Ferramenta de Business Intelligence para entender os motivos de cancelamentos de reservas hoteleiras e como agir para reduzir perdas.")
     st.markdown("Desenvolvido por: **Pedro Russo e Daniel Vianna**")
 
 # --- CARREGAMENTO E TREINAMENTO ---
@@ -392,7 +392,7 @@ for col in data.columns:
 
 # ------------------ INÍCIO DO TRECHO A SER ADICIONADO ------------------
 
-st.sidebar.header("🔧 Construção do Modelo Preditivo")
+st.sidebar.header("🔧 Filtros e Configurações para Construção do Modelo Preditivo")
 
 # --- Início do Formulário ---
 with st.sidebar.form(key='form_parametros'):
