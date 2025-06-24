@@ -274,10 +274,16 @@ def train_model(data, selected_features_list):
     final_selected_features = [f for f in final_features_for_model if f in data.columns and data[f].nunique() > 1]
 
     if not final_selected_features:
-        st.error("Nenhuma variável válida selecionada para o treinamento do modelo após a filtragem de colunas constantes. Isso pode acontecer se você selecionou apenas 'Nº de Adultos', 'Nº de Crianças' ou 'Nº de Bebês' sem 'Total de Hóspedes' e estas colunas individuais não possuem variância nos dados, ou se a combinação delas causa problemas. Por favor, ajuste sua seleção.")
+        st.error("Nenhuma variável válida selecionada...")
         return None
 
     X = data[final_selected_features]
+
+    # 1. Força todas as colunas a se tornarem numéricas. Se algo não puder ser convertido, vira 'NaN' (nulo).
+    X = X.apply(pd.to_numeric, errors='coerce')
+    
+    # 2. Substitui qualquer valor nulo que possa ter surgido por 0, para garantir que não haja erros.
+    X.fillna(0, inplace=True)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
